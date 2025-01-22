@@ -1,0 +1,59 @@
+<div class="availability-form">
+    <h3>Zdefiniuj swoją dostępność</h3>
+  
+    <label>
+      <input type="radio" name="availabilityType" [(ngModel)]="availability.type" value="cyclic" />
+      Cykliczna
+    </label>
+    <label>
+      <input type="radio" name="availabilityType" [(ngModel)]="availability.type" value="one-time" />
+      Jednorazowa
+    </label>
+  
+    <div *ngIf="availability.type === 'cyclic'">
+      <label>Zakres dat:</label>
+      <input type="date" [(ngModel)]="availability.startDate" /> - 
+      <input type="date" [(ngModel)]="availability.endDate" />
+  
+      <div class="weekdays-container">
+        <div *ngFor="let day of weekDays" class="weekday-checkbox">
+          <input 
+            type="checkbox"
+            [id]="'day-' + day.value"
+            [checked]="day.checked"
+            (change)="toggleDay(day)"
+          >
+          <label [for]="'day-' + day.value">{{ day.label }}</label>
+        </div>
+      </div>
+    </div>
+  
+    <div *ngIf="availability.type === 'one-time'">
+      <label>Data:</label>
+      <input type="date" [(ngModel)]="availability.date" />
+    </div>
+  
+    <label>Godziny konsultacji:</label>
+    <div>
+      <div *ngFor="let range of availability.timeRanges; let i = index">
+        <div class="time-range">
+          <div class="time-input">
+            <input type="time" step="1800" [(ngModel)]="range.start" placeholder="Od">
+            <small>Godziny co 30 minut</small>
+          </div>
+          <div class="time-input">
+            <input type="time" step="1800" [(ngModel)]="range.end" placeholder="Do">
+            <small>Godziny co 30 minut</small>
+          </div>
+          <button (click)="removeTimeRange(i)">Usuń</button>
+        </div>
+      </div>
+      <button (click)="addTimeRange()">Dodaj przedział czasowy</button>
+    </div>
+    <div class="buttons">
+      <button mat-button (click)="saveAvailability()">Zapisz dostępność</button>
+      <button mat-button color="primary" (click)="navigateBack()">Wróć do kalendarza</button>
+    </div>
+    
+</div>
+  

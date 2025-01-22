@@ -1,0 +1,15 @@
+.reservation-form {
+  padding: 20px;
+}
+
+.mat-form-field {
+  display: block;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.button-container {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+} 

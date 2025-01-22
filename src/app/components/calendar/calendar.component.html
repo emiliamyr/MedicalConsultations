@@ -1,0 +1,106 @@
+<!--<app-availability (saveAvailabilityEvent)="handleSaveAvailability($event)"></app-availability>-->
+
+<div class="week-range" *ngIf="isWeeklyView">
+  Tydzień: {{ getDisplayedWeekRange() }}
+</div>
+
+<div class="controls">
+  <button mat-button (click)="previous()">
+    {{ isWeeklyView ? 'Poprzedni tydzień' : 'Poprzedni dzień' }}
+  </button>
+  <button mat-button (click)="toggleView()">
+    {{ isWeeklyView ? 'Widok dzienny' : 'Widok tygodniowy' }}
+  </button>
+  <button mat-button (click)="next()">
+    {{ isWeeklyView ? 'Następny tydzień' : 'Następny dzień' }}
+  </button> 
+  <button mat-button (click)="navigateToAvailability()">Zdefiniuj dostępność</button>
+  <button mat-button (click)="navigateToAbsence()">Zarządzaj nieobecnościami</button>
+  <button mat-button (click)="clearAvailability()">Wyczyść</button>
+</div>
+
+<div class="calendar-container" [class.daily-view]="!isWeeklyView">
+  <div class="calendar-header">
+    <div class="calendar">
+      <div class="header-row">
+        <div class="time-header">Godziny</div>
+        <div *ngFor="let day of getDisplayedDays()" class="day-header" [class.current-day]="isToday(day.date)">
+          <div class="day-name">{{ day.date | date:'EE' }}</div>
+          <div class="day-date">{{ day.date | date:'d' }}</div>
+          <span class="consultation-count">
+            ({{ getReservedCount(day) }} konsultacje)
+          </span>
+        </div>
+      </div>
+
+      <div *ngFor="let hour of generateHours()" class="time-row">
+        <div class="time-cell">
+          {{ hour }}
+        </div>
+
+        <div *ngFor="let day of getDisplayedDays()" 
+             class="slot-cell"
+             [class.current-day]="isToday(day.date)"
+             [class.current-time-cell]="isToday(day.date) && isCurrentHour(hour)"
+             [class.available-time]="isTimeAvailable(day.date, hour)"
+             [class.absent-day]="day.isAbsent || isAbsentDay(day.date)">
+          <ng-container *ngIf="hasSlotAtHour(day, hour)">
+            <ng-container *ngFor="let slot of day.slots">
+              <ng-container *ngIf="slot.start === hour">
+                <div
+                  class="slot"
+                  (click)="onSlotClick(slot, day.date)"
+                  (mouseenter)="showSlotDetails($event, slot)"
+                  (mouseleave)="hideSlotDetails()"
+                  [class.reserved]="slot.isReserved"
+                  [class.available]="!slot.isReserved && (slot.isAvailable || isTimeAvailable(day.date, hour))"
+                  [class.empty]="slot.isEmpty"
+                  [class.past]="isPastSlot(day.date, slot.start)"
+                  [class.current]="isCurrentTime(day.date, slot.start, slot.end)"
+                  [class.cancelled]="slot.isCancelled"
+                >
+                  {{ slot.start }} - {{ slot.end }}
+                </div>
+              </ng-container>
+            </ng-container>
+          </ng-container>
+          <ng-container *ngIf="isTimeAvailable(day.date, hour) && !hasSlotAtHour(day, hour) && !isAbsentDay(day.date)">
+            <div
+              class="slot available"
+              (click)="onSlotClick({
+                start: hour,
+                end: addMinutes(hour, 30),
+                isEmpty: true,
+                isReserved: false,
+                isAvailable: true,
+                type: null
+              }, day.date)"
+              [class.past]="isPastSlot(day.date, hour)"
+            >
+              {{ hour }} - {{ addMinutes(hour, 30) }}
+            </div>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div 
+  *ngIf="selectedSlot" 
+  class="tooltip" 
+  [style.top.px]="tooltipPosition.top" 
+  [style.left.px]="tooltipPosition.left"
+>
+  <strong>Godzina:</strong> {{ selectedSlot.start }} - {{ selectedSlot.end }}<br />
+  <strong>Typ:</strong> {{ selectedSlot.type || 'Brak' }}<br />
+  <strong>Status:</strong> {{ !selectedSlot.isEmpty && selectedSlot.isReserved ? 'Zarezerwowany' : 'Wolny'}}<br />
+  <ng-container *ngIf="selectedSlot.details">
+    <strong>Pacjent:</strong> {{ selectedSlot.details.patientName }}<br />
+    <strong>Notatki:</strong> {{ selectedSlot.details.notes }}
+  </ng-container>
+</div>
+
+<div class="footer">
+  © 2024 Medical Consulting
+</div>

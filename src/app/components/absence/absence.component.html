@@ -1,0 +1,41 @@
+<div class="container">
+  <h2>Zarządzanie nieobecnościami</h2>
+  
+  <div class="form-container">
+    <form [formGroup]="absenceForm" (ngSubmit)="addAbsence()">
+      <mat-form-field appearance="fill">
+        <mat-label>Data rozpoczęcia</mat-label>
+        <input matInput [matDatepicker]="startPicker" formControlName="startDate">
+        <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
+        <mat-datepicker #startPicker></mat-datepicker>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill">
+        <mat-label>Data zakończenia</mat-label>
+        <input matInput [matDatepicker]="endPicker" formControlName="endDate">
+        <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
+        <mat-datepicker #endPicker></mat-datepicker>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill">
+        <mat-label>Powód nieobecności</mat-label>
+        <input matInput formControlName="reason">
+      </mat-form-field>
+
+      <div class="button-container">
+        <button mat-raised-button color="primary" type="submit">Dodaj nieobecność</button>
+        <button mat-raised-button (click)="navigateBack()">Powrót do kalendarza</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="absences-list">
+    <h3>Lista nieobecności</h3>
+    <mat-list>
+      <mat-list-item *ngFor="let absence of absences">
+        {{ absence.startDate | date }} - {{ absence.endDate | date }}
+        <span *ngIf="absence.reason">({{ absence.reason }})</span>
+      </mat-list-item>
+    </mat-list>
+  </div>
+</div>
