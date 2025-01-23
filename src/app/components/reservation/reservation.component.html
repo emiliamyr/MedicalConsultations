@@ -6,8 +6,9 @@
       <mat-label>Długość konsultacji</mat-label>
       <mat-select formControlName="duration">
         <mat-option value="30">30 minut</mat-option>
-        <mat-option value="60">60 minut</mat-option>
+        <mat-option value="60" [disabled]="!canBook60Min">60 minut</mat-option>
       </mat-select>
+      <mat-hint *ngIf="!canBook60Min">60-minutowa wizyta nie jest dostępna - następny slot jest zajęty</mat-hint>
     </mat-form-field>
 
     <mat-form-field>

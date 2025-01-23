@@ -2,7 +2,7 @@
   <h2>Zarządzanie nieobecnościami</h2>
   
   <div class="form-container">
-    <form [formGroup]="absenceForm" (ngSubmit)="addAbsence()">
+    <form [formGroup]="absenceForm" (ngSubmit)="onSubmit()">
       <mat-form-field appearance="fill">
         <mat-label>Data rozpoczęcia</mat-label>
         <input matInput [matDatepicker]="startPicker" formControlName="startDate">
@@ -18,13 +18,13 @@
       </mat-form-field>
 
       <mat-form-field appearance="fill">
-        <mat-label>Powód nieobecności</mat-label>
+        <mat-label>Powód</mat-label>
         <input matInput formControlName="reason">
       </mat-form-field>
 
       <div class="button-container">
-        <button mat-raised-button color="primary" type="submit">Dodaj nieobecność</button>
-        <button mat-raised-button (click)="navigateBack()">Powrót do kalendarza</button>
+        <button mat-raised-button color="primary" type="submit">Zapisz</button>
+        <button mat-button (click)="navigateBack()">Anuluj</button>
       </div>
     </form>
   </div>

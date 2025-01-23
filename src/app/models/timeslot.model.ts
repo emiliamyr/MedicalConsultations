@@ -4,8 +4,8 @@ export interface TimeSlot {
   isEmpty: boolean;
   isReserved: boolean;
   isAvailable: boolean;
-  type: string | null;
   isCancelled?: boolean;
+  type: string | null;
   cancellationReason?: string;
   details?: {
     patientName?: string;

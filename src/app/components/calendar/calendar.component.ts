@@ -6,7 +6,8 @@ import { TimeSlot } from '../../models/timeslot.model';
 import { Absence } from '../../models/absence.model';
 import { MatDialog } from '@angular/material/dialog';
 import { ReservationComponent } from '../reservation/reservation.component';
-import { DatePipe } from '@angular/common';
+import { FirebaseService } from '../../services/firebase.service';
+
 @Component({
   selector: 'app-calendar',
   templateUrl: './calendar.component.html',
@@ -26,7 +27,8 @@ export class CalendarComponent implements OnInit {
     private route: ActivatedRoute, 
     private router: Router,
     private http: HttpClient,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private firebaseService: FirebaseService
   ) {
     const navigation = this.router.getCurrentNavigation();
     const availabilityDays = navigation?.extras?.state?.['availabilityDays'];
@@ -38,8 +40,9 @@ export class CalendarComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.loadAvailabilityData();
-    this.loadAbsences();
+    this.loadAbsences().then(() => {
+      this.loadAvailabilityData();
+    });
     
     this.route.params.subscribe((params) => {
       if (params['view'] === 'daily') {
@@ -59,31 +62,37 @@ export class CalendarComponent implements OnInit {
     });
   }
   
-  private loadAvailabilityData(): void {
-    const savedAvailabilities = JSON.parse(localStorage.getItem('availabilities') || '[]');
-    const reservedSlots = JSON.parse(localStorage.getItem('reserved-slots') || '[]');
+  private async loadAvailabilityData(): Promise<void> {
+    try {
+      const availabilities = await this.firebaseService.getAvailabilities();
+      const reservedSlots = await this.firebaseService.getReservedSlots();
 
-    console.log('Załadowane dostępności:', savedAvailabilities);
-    console.log('Załadowane zarezerwowane sloty:', reservedSlots);
+      this.days = [];
 
-    this.days = [];
+      availabilities.forEach((availability: Availability) => {
+        // Stwórz kopię dostępnych godzin
+        const availableHours = [...availability.availableHours];
+        
+        // Stwórz sloty dla wszystkich dostępnych godzin
+        const slots = availableHours.map(hour => ({
+          start: hour,
+          end: this.addMinutes(hour, 30),
+          isEmpty: true,
+          isReserved: false,
+          isAvailable: true,
+          type: null
+        } as TimeSlot));
 
-    savedAvailabilities.forEach((availability: Availability) => {
-      const slots = availability.availableHours.map(hour => ({
-        start: hour,
-        end: this.addMinutes(hour, 30),
-        isEmpty: true,
-        isReserved: false,
-        isAvailable: true,
-        type: null
-      } as TimeSlot));
-
-      // Dodaj zarezerwowane sloty do dni
-      const reservedDay = reservedSlots.find((day: any) => day.date === availability.date);
-      if (reservedDay) {
-        reservedDay.slots.forEach((reservedSlot: TimeSlot) => {
+        // Znajdź rezerwacje dla tego dnia
+        const dayReservations = reservedSlots.filter(rs => rs.date === availability.date);
+        
+        // Dodaj zarezerwowane sloty
+        dayReservations.forEach(reservation => {
+          const reservedSlot = reservation.slot;
           const existingSlotIndex = slots.findIndex(slot => slot.start === reservedSlot.start);
+          
           if (existingSlotIndex !== -1) {
+            // Aktualizuj istniejący slot
             slots[existingSlotIndex] = {
               ...reservedSlot,
               isAvailable: false,
@@ -91,6 +100,7 @@ export class CalendarComponent implements OnInit {
               isReserved: true
             };
           } else {
+            // Dodaj nowy slot
             slots.push({
               ...reservedSlot,
               isAvailable: false,
@@ -99,39 +109,44 @@ export class CalendarComponent implements OnInit {
             });
           }
         });
-      }
 
-      this.days.push({
-        date: availability.date,
-        availableHours: availability.availableHours,
-        slots: slots
-      });
-    });
+        // Sortuj sloty po czasie rozpoczęcia
+        slots.sort((a, b) => a.start.localeCompare(b.start));
 
-    // Dodaj brakujące dni
-    for (let i = -7; i < 30; i++) {
-      const date = new Date(this.currentDate);
-      date.setDate(this.currentDate.getDate() + i);
-      const formattedDate = date.toISOString().split('T')[0];
-      
-      if (!this.days.find(day => day.date === formattedDate)) {
         this.days.push({
-          date: formattedDate,
-          slots: [],
-          availableHours: []
+          date: availability.date,
+          availableHours: availableHours, // Zachowaj oryginalne dostępne godziny
+          slots: slots
         });
+      });
+
+      // Dodaj brakujące dni
+      for (let i = -7; i < 30; i++) {
+        const date = new Date(this.currentDate);
+        date.setDate(this.currentDate.getDate() + i);
+        const formattedDate = date.toISOString().split('T')[0];
+        
+        if (!this.days.find(day => day.date === formattedDate)) {
+          this.days.push({
+            date: formattedDate,
+            slots: [],
+            availableHours: []
+          });
+        }
       }
+
+      // Sortuj dni po dacie
+      this.days.sort((a, b) => a.date.localeCompare(b.date));
+
+      // Oznacz dni nieobecności
+      if (this.absences.length > 0) {
+        this.markAbsentDays();
+      }
+
+      console.log('Załadowane dni:', this.days);
+    } catch (error) {
+      console.error('Błąd podczas ładowania danych:', error);
     }
-
-    // Sortuj dni po dacie
-    this.days.sort((a, b) => a.date.localeCompare(b.date));
-
-    // Oznacz dni nieobecności
-    if (this.absences.length > 0) {
-      this.markAbsentDays();
-    }
-
-    console.log('Załadowane dni:', this.days);
   }
 
   toggleView(): void {
@@ -145,17 +160,21 @@ export class CalendarComponent implements OnInit {
   previous(): void {
     if (this.isWeeklyView) {
       this.currentDate.setDate(this.currentDate.getDate() - 7);
-    } else if (this.selectedDate) {
-      this.selectedDate.setDate(this.selectedDate.getDate() - 1);
+    } else {
+      this.currentDate.setDate(this.currentDate.getDate() - 1);
     }
+    this.currentDate = new Date(this.currentDate);
+    this.loadAvailabilityData();
   }
   
   next(): void {
     if (this.isWeeklyView) {
       this.currentDate.setDate(this.currentDate.getDate() + 7);
-    } else if (this.selectedDate) {
-      this.selectedDate.setDate(this.selectedDate.getDate() + 1);
+    } else {
+      this.currentDate.setDate(this.currentDate.getDate() + 1);
     }
+    this.currentDate = new Date(this.currentDate);
+    this.loadAvailabilityData();
   }
 
 
@@ -320,11 +339,16 @@ export class CalendarComponent implements OnInit {
   }
 
   getDisplayedWeekRange(): string {
-    const startOfWeek = new Date(this.currentDate);
-    startOfWeek.setDate(this.currentDate.getDate() - this.currentDate.getDay() + 1);
+    const monday = new Date(this.currentDate);
+    monday.setHours(0, 0, 0, 0);
     
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    // Ustaw na poniedziałek
+    while (monday.getDay() !== 1) {
+      monday.setDate(monday.getDate() - 1);
+    }
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
     
     const formatDate = (date: Date): string => {
       return date.toLocaleDateString('pl-PL', { 
@@ -334,42 +358,47 @@ export class CalendarComponent implements OnInit {
       });
     };
     
-    return `${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`;
+    return `${formatDate(monday)} - ${formatDate(sunday)}`;
   }
 
-  getDisplayedDays(): { date: string, slots: TimeSlot[], availableHours?: string[], isAbsent?: boolean }[] {
-    console.log('Wyświetlane dni:', this.days);
-    if (!this.isWeeklyView && this.selectedDate) {
-      const dateString = this.selectedDate.toISOString().split('T')[0];
-      const existingDay = this.days.find(d => d.date === dateString) || {
-        date: dateString,
-        slots: [],
-        availableHours: [],
-        isAbsent: this.isAbsentDay(dateString)
-      };
-      return [existingDay];
-    }
-
-    const days = [];
-    const startOfWeek = new Date(this.currentDate);
-    startOfWeek.setDate(this.currentDate.getDate() - this.currentDate.getDay() + 1);
-
-    for (let i = 0; i < 7; i++) {
-      const currentDate = new Date(startOfWeek);
-      currentDate.setDate(startOfWeek.getDate() + i);
-      const dateString = currentDate.toISOString().split('T')[0];
-      
-      const existingDay = this.days.find(d => d.date === dateString);
-
-      days.push({
-        date: dateString,
-        slots: existingDay?.slots || [],
-        availableHours: existingDay?.availableHours || [],
-        isAbsent: existingDay?.isAbsent || this.isAbsentDay(dateString)
+  getDisplayedDays(): Availability[] {
+    if (!this.isWeeklyView) {
+      return this.days.filter(day => {
+        const dayDate = new Date(day.date);
+        return dayDate.toISOString().split('T')[0] === this.currentDate.toISOString().split('T')[0];
       });
     }
 
-    return days;
+    // Znajdź poniedziałek bieżącego tygodnia
+    const monday = new Date(this.currentDate);
+    monday.setHours(0, 0, 0, 0);
+    
+    // Dostosuj do poniedziałku
+    let dayOfWeek = monday.getDay();
+    if (dayOfWeek === 0) dayOfWeek = 7; // Traktuj niedzielę jako 7
+    monday.setDate(monday.getDate() - dayOfWeek + 2);
+
+    const weekDays: Availability[] = new Array(7);
+    
+    // Wypełnij tablicę dniami w odpowiedniej kolejności
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(monday);
+      currentDate.setDate(monday.getDate() + i);
+      const formattedDate = currentDate.toISOString().split('T')[0];
+      
+      const existingDay = this.days.find(day => day.date === formattedDate);
+      const dayToAdd = existingDay || {
+        date: formattedDate,
+        slots: [],
+        availableHours: []
+      };
+
+      // Umieść dzień w odpowiedniej pozycji (0 = poniedziałek, 6 = niedziela)
+      const dayPosition = (currentDate.getDay() + 6) % 7;
+      weekDays[i] = dayToAdd;
+    }
+
+    return weekDays;
   }
 
   getSlotHeight(slot: TimeSlot): number {
@@ -408,27 +437,46 @@ export class CalendarComponent implements OnInit {
       return dayDate.toISOString().split('T')[0] === searchDate.toISOString().split('T')[0];
     });
 
-    // console.log('Sprawdzam dostępność:', {
-    //   date,
-    //   hour,
-    //   availabilityDay,
-    //   isAvailable: availabilityDay?.availableHours?.includes(hour)
-    // });
-
     if (!availabilityDay?.availableHours) return false;
     return availabilityDay.availableHours.includes(hour);
   }
 
-  clearAvailability(): void {
-    localStorage.removeItem('availabilities');
-    localStorage.removeItem('absences');
-    localStorage.removeItem('reserved-slots');
-    this.days = this.days.map(day => ({
-      ...day,
-      availableHours: [],
-      isAbsent: false,
-      slots: []
-    }));
+  async clearAvailability(): Promise<void> {
+    try {
+      // Usuń wszystkie rezerwacje
+      const reservedSlots = await this.firebaseService.getReservedSlots();
+      for (const slot of reservedSlots) {
+        await this.firebaseService.deleteSlot(slot.id);
+      }
+
+      // Usuń wszystkie dostępności
+      await this.firebaseService.deleteAllAvailabilities();
+
+      // Usuń wszystkie nieobecności
+      const absences = await this.firebaseService.getAbsences();
+      for (const absence of absences) {
+        if (absence.id) {
+          await this.firebaseService.deleteAbsence(absence.id);
+        }
+      }
+      
+      // Wyczyść lokalny stan
+      this.days = this.days.map(day => ({
+        ...day,
+        availableHours: [],
+        slots: [],
+        isAbsent: false
+      }));
+      
+      // Wyczyść lokalną listę nieobecności
+      this.absences = [];
+      
+      // Odśwież widok
+      await this.loadAvailabilityData();
+    } catch (error) {
+      console.error('Błąd podczas czyszczenia kalendarza:', error);
+      alert('Wystąpił błąd podczas czyszczenia kalendarza');
+    }
   }
 
   getSlotWidth(slot: TimeSlot): number {
@@ -456,50 +504,89 @@ export class CalendarComponent implements OnInit {
     };
   }
 
-  private loadAbsences() {
-    const savedAbsences = localStorage.getItem('absences');
-    if (savedAbsences) {
-      this.absences = JSON.parse(savedAbsences);
+  private async loadAbsences(): Promise<void> {
+    try {
+      this.absences = await this.firebaseService.getAbsences();
       this.markAbsentDays();
+    } catch (error) {
+      console.error('Błąd podczas ładowania nieobecności:', error);
     }
   }
 
-  private markAbsentDays() {
-    this.days.forEach(day => {
-      const dayDate = new Date(day.date);
+  private markAbsentDays(): void {
+    this.days = this.days.map(day => {
       const isAbsent = this.absences.some(absence => {
-        const startDate = new Date(absence.startDate);
-        const endDate = new Date(absence.endDate);
-        return dayDate >= startDate && dayDate <= endDate;
+        const absenceStart = new Date(absence.startDate + 'T00:00:00');
+        const absenceEnd = new Date(absence.endDate + 'T23:59:59');
+        const currentDate = new Date(day.date + 'T12:00:00');
+        return currentDate >= absenceStart && currentDate <= absenceEnd;
       });
 
       if (isAbsent) {
-        day.isAbsent = true;
-        // Usuń dostępne sloty w dniu nieobecności
-        day.availableHours = [];
-        day.slots = day.slots.filter(slot => slot.isReserved); // Zachowaj tylko zarezerwowane sloty
+        // Oznacz zarezerwowane sloty jako odwołane
+        const updatedSlots = day.slots.map(slot => {
+          if (slot.isReserved) {
+            return {
+              ...slot,
+              isCancelled: true,
+              isAvailable: false,
+              isEmpty: false
+            };
+          }
+          return slot;
+        });
+
+        return {
+          ...day,
+          isAbsent: true,
+          availableHours: [],
+          slots: updatedSlots
+        };
       }
+
+      return {
+        ...day,
+        isAbsent: false
+      };
     });
 
-    // Zapisz zaktualizowane dostępności
-    localStorage.setItem('availabilities', JSON.stringify(
-      this.days.filter(day => day.availableHours && day.availableHours.length > 0)
-    ));
+    // Zaktualizuj dostępności w Firebase
+    this.days.forEach(async (day) => {
+      if (day.isAbsent) {
+        const existingAvailability = await this.firebaseService.getAvailabilities();
+        const dayAvailability = existingAvailability.find(a => a.date === day.date);
+        if (dayAvailability?.id) {
+          await this.firebaseService.updateAvailability(dayAvailability.id, {
+            availableHours: [],
+            slots: day.slots
+          });
+        }
+      }
+    });
   }
 
-  isAbsentDay(date: Date | string): boolean {
-    const searchDate = new Date(date);
-    return this.days.find(day => 
-      new Date(day.date).toISOString().split('T')[0] === searchDate.toISOString().split('T')[0]
-    )?.isAbsent || false;
+  isAbsentDay(date: string): boolean {
+    return this.absences.some(absence => {
+      const absenceStart = new Date(absence.startDate + 'T00:00:00');
+      const absenceEnd = new Date(absence.endDate + 'T23:59:59');
+      const currentDate = new Date(date + 'T12:00:00');
+      return currentDate >= absenceStart && currentDate <= absenceEnd;
+    });
   }
 
   onSlotClick(slot: TimeSlot, date: string) {
     console.log('Kliknięto slot:', slot);
     console.log('Data:', date);
     
+    if (slot.isCancelled) {
+      alert('Wizyta została odwołana z powodu nieobecności lekarza.');
+      return;
+    }
+    
     if (slot.isReserved) {
-      alert('Ten termin jest już zarezerwowany.');
+      if (confirm('Czy chcesz odwołać tę rezerwację?')) {
+        this.cancelReservation(date, slot);
+      }
       return;
     }
 
@@ -520,73 +607,157 @@ export class CalendarComponent implements OnInit {
 
     const dialogRef = this.dialog.open(ReservationComponent, {
       width: '500px',
-      data: { date, slot },
+      data: { 
+        date, 
+        slot,
+        canBook60Min: this.canBook60MinSlot(date, slot)
+      },
       disableClose: true
     });
 
     dialogRef.afterClosed().subscribe(result => {
       console.log('Dialog zamknięty, wynik:', result);
       if (result) {
+        if (result.duration === '60' && !this.canBook60MinSlot(date, slot)) {
+          alert('Nie można zarezerwować 60-minutowej wizyty - następny slot jest zajęty.');
+          return;
+        }
         this.updateSlot(date, slot, result);
       }
     });
   }
 
-  private updateSlot(date: string, slot: TimeSlot, reservationData: any) {
-    console.log('Aktualizuję slot:', slot);
+  private async cancelReservation(date: string, slot: TimeSlot) {
+    try {
+      // Pobierz wszystkie rezerwacje dla tego dnia
+      const reservations = await this.firebaseService.getReservedSlotsForDate(date);
+      
+      // Znajdź rezerwację do usunięcia
+      const reservationToCancel = reservations.find(r => 
+        r.slot.start === slot.start && r.date === date
+      );
+
+      if (reservationToCancel?.id) {
+        // Usuń rezerwację
+        await this.firebaseService.deleteSlot(reservationToCancel.id);
+
+        // Jeśli to była 60-minutowa wizyta, znajdź i usuń drugi slot
+        if (slot.end === this.addMinutes(slot.start, 60)) {
+          const nextSlotReservation = reservations.find(r => 
+            r.slot.start === this.addMinutes(slot.start, 30) && r.date === date
+          );
+          if (nextSlotReservation?.id) {
+            await this.firebaseService.deleteSlot(nextSlotReservation.id);
+          }
+        }
+
+        // Przywróć dostępność slotów w Firebase
+        const existingAvailability = await this.firebaseService.getAvailabilities();
+        const dayAvailability = existingAvailability.find(a => a.date === date);
+        
+        if (dayAvailability?.id) {
+          const updatedAvailableHours = [...dayAvailability.availableHours, slot.start];
+          if (slot.end === this.addMinutes(slot.start, 60)) {
+            updatedAvailableHours.push(this.addMinutes(slot.start, 30));
+          }
+          
+          await this.firebaseService.updateAvailability(dayAvailability.id, {
+            availableHours: [...new Set(updatedAvailableHours)].sort(),
+            date: date
+          });
+        }
+
+        // Odśwież widok
+        await this.loadAvailabilityData();
+        alert('Rezerwacja została odwołana.');
+      }
+    } catch (error) {
+      console.error('Błąd podczas odwoływania rezerwacji:', error);
+      alert('Wystąpił błąd podczas odwoływania rezerwacji');
+    }
+  }
+
+  private canBook60MinSlot(date: string, slot: TimeSlot): boolean {
+    const day = this.days.find(d => d.date === date);
+    if (!day) return false;
+
+    const nextSlotStart = this.addMinutes(slot.start, 30);
     
-    // Aktualizuj w localStorage
-    const reservedSlots = JSON.parse(localStorage.getItem('reserved-slots') || '[]');
-    const dayIndex = reservedSlots.findIndex((day: any) => day.date === date);
+    // Sprawdź czy następna godzina jest w ogóle dostępna w harmonogramie
+    if (!day.availableHours.includes(nextSlotStart)) {
+      return false;
+    }
 
-    const updatedSlot = {
-      ...slot,
-      isEmpty: false,
-      isReserved: true,
-      isAvailable: false,  // Dodaj to pole
-      type: reservationData.type,
-      details: {
-        patientName: reservationData.patientName,
-        patientGender: reservationData.patientGender,
-        patientAge: reservationData.patientAge,
-        notes: reservationData.doctorNotes
-      }
-    };
+    const nextSlot = day.slots.find(s => s.start === nextSlotStart);
 
-    if (dayIndex === -1) {
-      reservedSlots.push({
-        date,
-        slots: [updatedSlot]
+    // Sprawdź czy następny slot istnieje i jest zarezerwowany
+    if (nextSlot && nextSlot.isReserved) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private async updateSlot(date: string, slot: TimeSlot, reservationData: any) {
+    try {
+      // Znajdź dzień w lokalnym stanie
+      const day = this.days.find(d => d.date === date);
+      if (!day) return;
+
+      // Zachowaj listę dostępnych godzin
+      const availableHours = [...day.availableHours];
+
+      // Zapisz rezerwację
+      await this.firebaseService.saveReservedSlot(date, {
+        ...slot,
+        isEmpty: false,
+        isReserved: true,
+        isAvailable: false,
+        type: reservationData.type,
+        details: {
+          patientName: reservationData.patientName,
+          patientGender: reservationData.patientGender,
+          patientAge: reservationData.patientAge,
+          notes: reservationData.doctorNotes
+        }
       });
-    } else {
-      const slotIndex = reservedSlots[dayIndex].slots.findIndex(
-        (s: TimeSlot) => s.start === slot.start && s.end === slot.end
-      );
-      if (slotIndex !== -1) {
-        reservedSlots[dayIndex].slots[slotIndex] = updatedSlot;
-      } else {
-        reservedSlots[dayIndex].slots.push(updatedSlot);
+
+      // Jeśli wizyta jest 60-minutowa
+      if (reservationData.duration === '60') {
+        const nextSlot = {
+          ...slot,
+          start: this.addMinutes(slot.start, 30),
+          end: this.addMinutes(slot.start, 60),
+          isEmpty: false,
+          isReserved: true,
+          isAvailable: false,
+          type: reservationData.type,
+          details: {
+            patientName: reservationData.patientName,
+            patientGender: reservationData.patientGender,
+            patientAge: reservationData.patientAge,
+            notes: reservationData.doctorNotes
+          }
+        };
+        await this.firebaseService.saveReservedSlot(date, nextSlot);
       }
-    }
 
-    // Zapisz zaktualizowane sloty
-    localStorage.setItem('reserved-slots', JSON.stringify(reservedSlots));
-
-    // Aktualizuj lokalny stan
-    const localDayIndex = this.days.findIndex(d => d.date === date);
-    if (localDayIndex !== -1) {
-      const localSlotIndex = this.days[localDayIndex].slots.findIndex(
-        s => s.start === slot.start && s.end === slot.end
-      );
-      if (localSlotIndex !== -1) {
-        this.days[localDayIndex].slots[localSlotIndex] = updatedSlot;
-      } else {
-        this.days[localDayIndex].slots.push(updatedSlot);
+      // Zaktualizuj dostępność w Firebase
+      const existingAvailability = await this.firebaseService.getAvailabilities();
+      const dayAvailability = existingAvailability.find(a => a.date === date);
+      
+      if (dayAvailability?.id) {
+        await this.firebaseService.updateAvailability(dayAvailability.id, {
+          availableHours: availableHours,
+          date: date
+        });
       }
-    }
 
-    // Odśwież dane
-    this.loadAvailabilityData();
+      // Odśwież dane
+      await this.loadAvailabilityData();
+    } catch (error) {
+      console.error('Błąd podczas aktualizacji slotu:', error);
+    }
   }
 
   public addMinutes(time: string, minutes: number): string {

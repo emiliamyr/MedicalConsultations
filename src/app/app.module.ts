@@ -19,12 +19,26 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterModule } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
+import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
+import { provideFirestore, getFirestore } from '@angular/fire/firestore';
+
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBxxyY91O8_tURhtqtLYzlpiss1dVxC0Rw",
+  authDomain: "medicalconsultations-de9d9.firebaseapp.com",
+  projectId: "medicalconsultations-de9d9",
+  storageBucket: "medicalconsultations-de9d9.firebasestorage.app",
+  messagingSenderId: "206623961498",
+  appId: "1:206623961498:web:91fe3e254f19ba42c7ca23",
+  measurementId: "G-12BMHCS6E7"
+};
 
 @NgModule({
   declarations: [
     AppComponent,
     CalendarComponent,
-    AvailabilityComponent
+    AvailabilityComponent,
+
   ],
   imports: [
     BrowserModule,
@@ -47,7 +61,9 @@ import { CommonModule, DatePipe } from '@angular/common';
   ],
   providers: [
     provideAnimationsAsync(),
-    DatePipe
+    DatePipe,
+    provideFirebaseApp(() => initializeApp(firebaseConfig)),
+    provideFirestore(() => getFirestore())
   ],
   bootstrap: [AppComponent]
 })

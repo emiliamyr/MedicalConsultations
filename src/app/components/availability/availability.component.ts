@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { range } from 'rxjs';
 import { Availability } from '../../models/availability.model';
 import { TimeSlot } from '../../models/timeslot.model';
+import { FirebaseService } from '../../services/firebase.service';
 
 @Component({
   selector: 'app-availability',
@@ -19,6 +20,7 @@ export class AvailabilityComponent {
     startDate: '',
     endDate: '',
     daysOfWeek: [],
+    date: '',
     timeRanges: [{ start: '08:00', end: '12:30' }],
   };
 
@@ -32,7 +34,7 @@ export class AvailabilityComponent {
     { label: 'Niedziela', value: 0, checked: false },
   ];
 
-  constructor(private router: Router) {}
+  constructor(private router: Router, private firebaseService: FirebaseService) {}
 
   addTimeRange(): void {
     this.availability.timeRanges.push({ start: '', end: '' });
@@ -42,38 +44,52 @@ export class AvailabilityComponent {
     this.availability.timeRanges.splice(index, 1);
   }
 
-  saveAvailability(): void {
+  async saveAvailability(): Promise<void> {
     if (!this.validateAvailability()) {
       return;
     }
 
-    const availabilityDays = this.generateAvailabilityDays();
-    
-    // Debugowanie - sprawdź wygenerowane dni
-    console.log('Wygenerowane dni:', availabilityDays);
-    
-    // Pobierz istniejące sloty
-    const existingSlots = JSON.parse(localStorage.getItem('reserved-slots') || '[]');
-    console.log('Istniejące sloty:', existingSlots);
-    
-    // Połącz nowe sloty z istniejącymi, unikając duplikatów dat
-    const updatedSlots = existingSlots.filter((slot: Availability) => 
-      !availabilityDays.some(newSlot => newSlot.date === slot.date)
-    );
-    updatedSlots.push(...availabilityDays);
-    
-    console.log('Zaktualizowane sloty:', updatedSlots);
-    
-    // Zapisz zaktualizowane sloty
-    localStorage.setItem('reserved-slots', JSON.stringify(updatedSlots));
-    
-    // Emituj event i nawiguj
-    this.saveAvailabilityEvent.emit(availabilityDays);
-    this.router.navigate(['/calendar'], {
-      state: { availabilityDays }
-    }).then(() => {
-      window.location.reload(); // Dodaj odświeżenie strony
-    });
+    try {
+      // Pobierz istniejące dostępności
+      const existingAvailabilities = await this.firebaseService.getAvailabilities();
+      const newAvailabilityDays = this.generateAvailabilityDays();
+      
+      // Dla każdego nowego dnia
+      for (const newDay of newAvailabilityDays) {
+        // Sprawdź czy już istnieje dostępność na ten dzień
+        const existingDay = existingAvailabilities.find(day => day.date === newDay.date);
+        
+        if (existingDay) {
+          // Jeśli istnieje, dodaj nowe godziny do istniejących
+          const combinedHours = [...new Set([...existingDay.availableHours, ...newDay.availableHours])];
+          const combinedSlots = [...existingDay.slots, ...newDay.slots]
+            .sort((a, b) => a.start.localeCompare(b.start));
+
+          // Aktualizuj istniejący dokument
+          if (existingDay.id) {
+            await this.firebaseService.updateAvailability(existingDay.id, {
+              availableHours: combinedHours,
+              slots: combinedSlots
+            });
+          }
+        } else {
+          // Jeśli nie istnieje, dodaj nowy dzień
+          await this.firebaseService.saveAvailability({
+            date: newDay.date,
+            slots: newDay.slots,
+            availableHours: newDay.availableHours
+          });
+        }
+      }
+
+      await this.router.navigate(['/calendar']);
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    } catch (error) {
+      console.error('Błąd podczas zapisywania dostępności:', error);
+      alert('Wystąpił błąd podczas zapisywania dostępności');
+    }
   }
 
   private validateTimeFormat(time: string): boolean {
@@ -83,53 +99,20 @@ export class AvailabilityComponent {
 
   private validateAvailability(): boolean {
     if (this.availability.type === 'cyclic') {
-      if (
-        !this.availability.startDate || 
-        !this.availability.endDate || 
-        !this.availability.daysOfWeek?.length
-      ) {
-        alert('Uzupełnij wszystkie pola dla dostępności cyklicznej.');
+      if (!this.availability.startDate || !this.availability.endDate || this.availability.daysOfWeek.length === 0) {
+        alert('Wypełnij wszystkie wymagane pola dla dostępności cyklicznej');
         return false;
       }
-    } else if (this.availability.type === 'one-time') {
+    } else {
       if (!this.availability.date) {
-        alert('Uzupełnij datę dla dostępności jednorazowej.');
+        alert('Wybierz datę dla dostępności jednorazowej');
         return false;
       }
     }
 
-    // Sprawdź konflikty z absencjami
-    const absences = JSON.parse(localStorage.getItem('absences') || '[]');
-    const hasConflict = absences.some((absence: any) => {
-      if (this.availability.type === 'cyclic') {
-        return (
-          this.availability.startDate! <= absence.endDate &&
-          this.availability.endDate! >= absence.startDate
-        );
-      } else {
-        return (
-          this.availability.date! >= absence.startDate &&
-          this.availability.date! <= absence.endDate
-        );
-      }
-    });
-
-    if (hasConflict) {
-      alert('Nie można dodać dostępności w dniach, w których jest zaplanowana nieobecność.');
+    if (this.availability.timeRanges.length === 0) {
+      alert('Dodaj przynajmniej jeden zakres godzin');
       return false;
-    }
-
-    if (!this.availability.timeRanges || !this.availability.timeRanges.length) {
-      alert('Dodaj przynajmniej jeden przedział czasowy.');
-      return false;
-    }
-
-    // Sprawdzamy format czasu dla każdego przedziału
-    for (const range of this.availability.timeRanges) {
-      if (!this.validateTimeFormat(range.start) || !this.validateTimeFormat(range.end)) {
-        alert('Godziny muszą być ustawione co 30 minut (np. 8:00, 8:30, 9:00).');
-        return false;
-      }
     }
 
     return true;
@@ -139,9 +122,9 @@ export class AvailabilityComponent {
     const availabilityDays: Availability[] = [];
 
     if (this.availability.type === 'cyclic') {
-      const startDate = new Date(this.availability.startDate! + 'T12:00:00');
-      const endDate = new Date(this.availability.endDate! + 'T12:00:00');
-      const daysOfWeek = this.availability.daysOfWeek!;
+      const startDate = new Date(this.availability.startDate + 'T12:00:00');
+      const endDate = new Date(this.availability.endDate + 'T12:00:00');
+      const daysOfWeek = this.availability.daysOfWeek;
 
       let currentDate = new Date(startDate);
       while (currentDate <= endDate) {
@@ -151,8 +134,8 @@ export class AvailabilityComponent {
         }
         currentDate.setDate(currentDate.getDate() + 1);
       }
-    } else if (this.availability.type === 'one-time') {
-      const date = new Date(this.availability.date! + 'T12:00:00');
+    } else {
+      const date = new Date(this.availability.date + 'T12:00:00');
       const formattedDate = date.toISOString().split('T')[0];
       this.addAvailabilityDay(availabilityDays, formattedDate);
     }
@@ -165,16 +148,18 @@ export class AvailabilityComponent {
       const slots = [];
       let currentTime = range.start;
       
-      while (currentTime < range.end) {
+      while (currentTime <= range.end) {
         const endTime = this.addMinutes(currentTime, 30);
-        slots.push({
-          start: currentTime,
-          end: endTime,
-          isEmpty: true,
-          isReserved: false,
-          isAvailable: true,
-          type: null
-        });
+        if (endTime <= range.end) {
+          slots.push({
+            start: currentTime,
+            end: endTime,
+            isEmpty: true,
+            isReserved: false,
+            isAvailable: true,
+            type: null
+          });
+        }
         currentTime = endTime;
       }
       
@@ -206,6 +191,54 @@ export class AvailabilityComponent {
     this.availability.daysOfWeek = this.weekDays
       .filter(d => d.checked)
       .map(d => d.value);
+  }
+
+  private generateCyclicAvailabilities(): Availability[] {
+    const availabilities: Availability[] = [];
+    const availabilityDays = this.generateAvailabilityDays();
+    availabilityDays.forEach(day => {
+      const availability: Availability = {
+        date: day.date,
+        slots: day.slots,
+        availableHours: day.availableHours
+      };
+      availabilities.push(availability);
+    });
+    return availabilities;
+  }
+
+  private generateAvailableHours(): string[] {
+    return this.availability.timeRanges.flatMap(range => {
+      const hours = [];
+      let currentTime = range.start;
+      while (currentTime <= range.end) {
+        hours.push(currentTime);
+        currentTime = this.addMinutes(currentTime, 30);
+      }
+      return hours;
+    });
+  }
+
+  private generateTimeSlots(): TimeSlot[] {
+    return this.availability.timeRanges.flatMap(range => {
+      const slots = [];
+      let currentTime = range.start;
+      while (currentTime <= range.end) {
+        const endTime = this.addMinutes(currentTime, 30);
+        if (endTime <= range.end) {
+          slots.push({
+            start: currentTime,
+            end: endTime,
+            isEmpty: true,
+            isReserved: false,
+            isAvailable: true,
+            type: null
+          });
+        }
+        currentTime = endTime;
+      }
+      return slots;
+    });
   }
 }
 
