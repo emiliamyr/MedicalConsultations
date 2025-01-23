@@ -446,7 +446,9 @@ export class CalendarComponent implements OnInit {
       // Usuń wszystkie rezerwacje
       const reservedSlots = await this.firebaseService.getReservedSlots();
       for (const slot of reservedSlots) {
-        await this.firebaseService.deleteSlot(slot.id);
+        if (slot.id) {
+          await this.firebaseService.deleteSlot(slot.id);
+        }
       }
 
       // Usuń wszystkie dostępności

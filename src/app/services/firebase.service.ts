@@ -4,6 +4,7 @@ import { Availability } from '../models/availability.model';
 import { TimeSlot } from '../models/timeslot.model';
 import { Observable, from, map } from 'rxjs';
 import { Absence } from '../models/absence.model';
+import { ReservedSlot } from '../models/reserved-slot.model';
 
 @Injectable({
   providedIn: 'root'
@@ -44,18 +45,18 @@ export class FirebaseService {
   }
 
   // Pobierz zarezerwowane sloty
-  async getReservedSlots(): Promise<any[]> {
+  async getReservedSlots(): Promise<ReservedSlot[]> {
     const reservedSlotsCollection = collection(this.firestore, 'reserved-slots');
     const querySnapshot = await getDocs(reservedSlotsCollection);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReservedSlot));
   }
 
   // Pobierz zarezerwowane sloty dla konkretnej daty
-  async getReservedSlotsForDate(date: string): Promise<any[]> {
+  async getReservedSlotsForDate(date: string): Promise<ReservedSlot[]> {
     const reservedSlotsCollection = collection(this.firestore, 'reserved-slots');
     const q = query(reservedSlotsCollection, where('date', '==', date));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReservedSlot));
   }
 
   // Aktualizuj slot

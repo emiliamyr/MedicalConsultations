@@ -1,11 +1,13 @@
 .calendar {
-  gap: 10px;
+  gap: 0;
   width: 100%; 
-  max-height: calc(100vh - 150px);
+  max-height: calc(100vh - 180px);
   overflow-x: hidden;
   overflow-y: auto;
   margin-bottom: 15px;
   border-collapse: collapse;
+  padding-bottom: 80px;
+  border: 1px solid #ddd;
 }
 
 .week-range{
@@ -48,14 +50,14 @@
 
 .header-row {
   display: grid;
-  grid-template-columns: 100px repeat(7, 1fr); 
-  gap: 10px;
+  grid-template-columns: 70px repeat(7, 1fr);
+  gap: 0;
   text-align: center; 
   width: 100%;
   position: sticky;
   top: 0;
   z-index: 10;
-  border-bottom: 1px solid #ddd;
+  background-color: #f0f0f0;
 }
 
 .time-header {
@@ -79,27 +81,30 @@
 
 .time-row {
   display: grid;
-  grid-template-columns: 100px repeat(7, 1fr);
-  gap: 10px;
+  grid-template-columns: 70px repeat(7, 1fr);
+  gap: 0;
   min-height: 60px;
+  border-top: 1px solid #ddd;
 }
 
 .time-cell {
   text-align: right;
-  background-color: transparent;
-  border-right: 1px solid #eee;
-  border-bottom: 1px solid #eee;
+  background-color: #f9f9f9;
+  border-right: 1px solid #ddd;
   font-weight: bold;
-  padding: 10px;
+  padding: 5px 5px;
   height: 60px;
+  width: 70px;
+  font-size: 0.9em;
+  box-sizing: border-box;
 }
 
 .slot-cell {
   position: relative;
   height: 60px;
-  border-right: 1px solid #eee;
-  border-bottom: 1px solid #eee;
+  border-right: 1px solid #ddd;
   padding: 0;
+  box-sizing: border-box;
 }
 
 .slot {

@@ -1,26 +1,31 @@
 .availability-form {
     border: 1px solid #ddd;
     padding: 20px;
-    margin-bottom: 20px;
+    margin: 20px;
     background: #f9f9f9;
     border-radius: 5px;
-  }
+    height: calc(100vh - 250px); /* Jeszcze większa przestrzeń */
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    margin-bottom: 120px; /* Większy margines na dole */
+}
   
-  .availability-form label {
+.availability-form label {
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
-  }
+}
   
-  .availability-form input[type='date'],
-  .availability-form input[type='time'] {
+.availability-form input[type='date'],
+.availability-form input[type='time'] {
     margin-bottom: 10px;
     padding: 5px;
     border: 1px solid #ccc;
     border-radius: 4px;
-  }
+}
   
-  .availability-form button {
+.availability-form button {
     margin-top: 10px;
     padding: 5px 10px;
     background-color: #4caf50;
@@ -28,42 +33,55 @@
     border: none;
     border-radius: 4px;
     cursor: pointer;
-  }
+}
   
-  .availability-form button:hover {
+.availability-form button:hover {
     background-color: #3b773e;
-  }
+}
 
-  .buttons{
+.buttons {
+    position: fixed;
+    bottom: 60px; /* Większy odstęp od dołu */
+    left: 40px;
+    right: 40px;
     display: flex;
     justify-content: space-between;
-  }
+    background: #f9f9f9;
+    padding: 15px;
+    border-top: 1px solid #ddd;
+    z-index: 1000;
+}
   
-  .weekdays-container {
+.weekdays-container {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     margin: 10px 0;
-  }
+}
   
-  .weekday-checkbox {
+.weekday-checkbox {
     display: flex;
     align-items: center;
     gap: 5px;
-  }
+}
   
-  .weekday-checkbox input[type="checkbox"] {
+.weekday-checkbox input[type="checkbox"] {
     margin: 0;
-  }
+}
   
-  .time-input {
+.time-input {
     display: flex;
     flex-direction: column;
     margin-right: 10px;
-  }
+}
   
-  .time-input small {
+.time-input small {
     color: #666;
     margin-top: 4px;
-  }
+}
+  
+/* Zwiększony margines na dole */
+.time-range:last-child {
+    margin-bottom: 150px;
+}
   
