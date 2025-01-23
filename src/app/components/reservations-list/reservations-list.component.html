@@ -1,0 +1,40 @@
+<div class="reservations-container">
+  <h2>Lista zarezerwowanych konsultacji</h2>
+
+  <div class="reservations-list">
+    <mat-card *ngFor="let reservation of reservations" class="reservation-card">
+      <mat-card-header>
+        <mat-card-title>
+          {{ formatDate(reservation.date) }} - {{ reservation.slot.start }}
+        </mat-card-title>
+        <mat-card-subtitle>
+          Pacjent: {{ reservation.slot.details?.patientName }}
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <p>Typ wizyty: {{ reservation.slot.type }}</p>
+        <p>Czas trwania: {{ reservation.slot.end === addMinutes(reservation.slot.start, 60) ? '60 min' : '30 min' }}</p>
+        <p *ngIf="reservation.slot.details?.notes">
+          Notatki: {{ reservation.slot.details.notes }}
+        </p>
+      </mat-card-content>
+
+      <mat-card-actions>
+        <mat-chip-listbox>
+          <mat-chip-option [color]="reservation.isPaid ? 'primary' : 'warn'" selected>
+            {{ reservation.isPaid ? 'Opłacone' : 'Oczekuje na płatność' }}
+          </mat-chip-option>
+        </mat-chip-listbox>
+
+        <button 
+          mat-raised-button 
+          color="primary" 
+          (click)="processPayment(reservation)"
+          [disabled]="reservation.isPaid">
+          Przejdź do płatności
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+</div> 

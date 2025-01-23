@@ -21,6 +21,7 @@ import { RouterModule } from '@angular/router';
 import { CommonModule, DatePipe } from '@angular/common';
 import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { provideFirestore, getFirestore } from '@angular/fire/firestore';
+import { MatIconModule } from '@angular/material/icon';
 
 
 const firebaseConfig = {
@@ -57,7 +58,8 @@ const firebaseConfig = {
     MatDialogModule,
     MatSelectModule,
     RouterModule,
-    CommonModule
+    CommonModule,
+    MatIconModule
   ],
   providers: [
     provideAnimationsAsync(),

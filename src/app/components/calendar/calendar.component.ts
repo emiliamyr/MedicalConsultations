@@ -43,7 +43,7 @@ export class CalendarComponent implements OnInit {
     this.loadAbsences().then(() => {
       this.loadAvailabilityData();
     });
-    
+
     this.route.params.subscribe((params) => {
       if (params['view'] === 'daily') {
         this.isWeeklyView = false;
@@ -109,7 +109,7 @@ export class CalendarComponent implements OnInit {
             });
           }
         });
-
+        
         // Sortuj sloty po czasie rozpoczęcia
         slots.sort((a, b) => a.start.localeCompare(b.start));
 
@@ -251,7 +251,7 @@ export class CalendarComponent implements OnInit {
     const now = new Date();
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
-
+  
     const compareDate = slotDate instanceof Date ? slotDate : new Date(slotDate);
     
     if (now.getFullYear() !== compareDate.getFullYear() || 
@@ -259,11 +259,11 @@ export class CalendarComponent implements OnInit {
         now.getDate() !== compareDate.getDate()) {
       return false;
     }
-
+  
     const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
     const startTimeInMinutes = startHour * 60 + startMinute;
     const endTimeInMinutes = endHour * 60 + endMinute;
-
+  
     return currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutes;
   }
   
@@ -513,8 +513,8 @@ export class CalendarComponent implements OnInit {
     }
   }
 
-  private markAbsentDays(): void {
-    this.days = this.days.map(day => {
+  private async markAbsentDays(): Promise<void> {
+    const updatedDays = await Promise.all(this.days.map(async day => {
       const isAbsent = this.absences.some(absence => {
         const absenceStart = new Date(absence.startDate + 'T00:00:00');
         const absenceEnd = new Date(absence.endDate + 'T23:59:59');
@@ -523,24 +523,49 @@ export class CalendarComponent implements OnInit {
       });
 
       if (isAbsent) {
+        // Usuń dostępności z Firebase dla tego dnia
+        const existingAvailability = await this.firebaseService.getAvailabilities();
+        const dayAvailability = existingAvailability.find(a => a.date === day.date);
+        if (dayAvailability?.id) {
+          await this.firebaseService.updateAvailability(dayAvailability.id, {
+            availableHours: [],
+            slots: []
+          });
+        }
+
         // Oznacz zarezerwowane sloty jako odwołane
-        const updatedSlots = day.slots.map(slot => {
+        const updatedSlots = await Promise.all(day.slots.map(async slot => {
           if (slot.isReserved) {
+            // Znajdź rezerwację i oznacz jako odwołaną
+            const reservations = await this.firebaseService.getReservedSlotsForDate(day.date);
+            const reservationToUpdate = reservations.find(r => r.slot.start === slot.start);
+            if (reservationToUpdate?.id) {
+              await this.firebaseService.updateSlot(reservationToUpdate.id, {
+                ...reservationToUpdate,
+                slot: {
+                  ...reservationToUpdate.slot,
+                  isCancelled: true,
+                  cancellationReason: 'Nieobecność lekarza'
+                }
+              });
+            }
+
             return {
               ...slot,
               isCancelled: true,
               isAvailable: false,
-              isEmpty: false
+              isEmpty: false,
+              isReserved: true
             };
           }
-          return slot;
-        });
+          return null; // Usuwamy niezarezerwowane sloty
+        }));
 
         return {
           ...day,
           isAbsent: true,
-          availableHours: [],
-          slots: updatedSlots
+          availableHours: [], // Czyścimy dostępne godziny
+          slots: updatedSlots.filter(slot => slot !== null) // Zachowujemy tylko zarezerwowane sloty
         };
       }
 
@@ -548,21 +573,9 @@ export class CalendarComponent implements OnInit {
         ...day,
         isAbsent: false
       };
-    });
+    }));
 
-    // Zaktualizuj dostępności w Firebase
-    this.days.forEach(async (day) => {
-      if (day.isAbsent) {
-        const existingAvailability = await this.firebaseService.getAvailabilities();
-        const dayAvailability = existingAvailability.find(a => a.date === day.date);
-        if (dayAvailability?.id) {
-          await this.firebaseService.updateAvailability(dayAvailability.id, {
-            availableHours: [],
-            slots: day.slots
-          });
-        }
-      }
-    });
+    this.days = updatedDays;
   }
 
   isAbsentDay(date: string): boolean {

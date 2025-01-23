@@ -1,6 +1,20 @@
-<!-- <mat-toolbar color="primary">
+<mat-toolbar color="primary">
   <span>Medical Consultation App</span>
-</mat-toolbar> -->
+  <nav>
+    <button mat-button routerLink="/calendar" routerLinkActive="active">
+      Kalendarz
+    </button>
+    <button mat-button routerLink="/availability" routerLinkActive="active">
+      Dostępność
+    </button>
+    <button mat-button routerLink="/absence" routerLinkActive="active">
+      Nieobecności
+    </button>
+    <button mat-button routerLink="/reservations" routerLinkActive="active">
+      Rezerwacje
+    </button>
+  </nav>
+</mat-toolbar>
 
 <router-outlet></router-outlet>
 

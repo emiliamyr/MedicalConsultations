@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { CalendarComponent } from './components/calendar/calendar.component';
 import { AvailabilityComponent } from './components/availability/availability.component';
+import { ReservationsListComponent } from './components/reservations-list/reservations-list.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/calendar', pathMatch: 'full' },
@@ -11,6 +12,10 @@ const routes: Routes = [
   { 
     path: 'absence', 
     loadComponent: () => import('./components/absence/absence.component').then(m => m.AbsenceComponent)
+  },
+  {
+    path: 'reservations',
+    component: ReservationsListComponent
   }
 ];
 
