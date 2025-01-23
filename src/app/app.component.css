@@ -1,13 +1,14 @@
 mat-toolbar {
   display: flex;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 16px;
   margin-bottom: 20px;
 }
 
 nav {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
 }
 
 .active {
@@ -15,18 +16,72 @@ nav {
 }
 
 button mat-icon {
-  margin-right: 8px;
+  margin-right: 4px;
 }
 
 .footer {
   position: fixed;
   bottom: 0;
+  left: 0;
   width: 100%;
   text-align: center;
   padding: 10px;
   background-color: #f5f5f5;
+  z-index: 1000;
 }
 
 .spacer {
   flex: 1 1 auto;
+}
+
+.user-info {
+  margin-left: 16px;
+}
+
+.user-button {
+  min-width: auto;
+  padding: 0 8px;
+}
+
+.username {
+  margin: 0 4px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-header {
+  padding: 16px;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.user-header small {
+  color: rgba(0, 0, 0, 0.54);
+}
+
+.user-menu {
+  min-width: 200px;
+}
+
+mat-divider {
+  margin: 8px 0;
+}
+
+.main-container {
+  padding: 20px;
+  padding-bottom: 100px;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+  position: relative;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }

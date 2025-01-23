@@ -1,0 +1,33 @@
+<div class="login-container">
+  <h2>Logowanie</h2>
+  
+  <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+    <mat-form-field>
+      <mat-label>Email</mat-label>
+      <input matInput type="email" formControlName="email">
+      <mat-error *ngIf="loginForm.get('email')?.errors?.['required']">
+        Email jest wymagany
+      </mat-error>
+      <mat-error *ngIf="loginForm.get('email')?.errors?.['email']">
+        Nieprawidłowy format emaila
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Hasło</mat-label>
+      <input matInput type="password" formControlName="password">
+      <mat-error *ngIf="loginForm.get('password')?.errors?.['required']">
+        Hasło jest wymagane
+      </mat-error>
+    </mat-form-field>
+
+    <div class="button-container">
+      <button mat-raised-button color="primary" type="submit" [disabled]="loading">
+        {{ loading ? 'Logowanie...' : 'Zaloguj się' }}
+      </button>
+      <button mat-button type="button" routerLink="/register">
+        Nie masz konta? Zarejestruj się
+      </button>
+    </div>
+  </form>
+</div> 

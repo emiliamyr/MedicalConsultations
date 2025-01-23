@@ -7,6 +7,9 @@ import { Absence } from '../../models/absence.model';
 import { MatDialog } from '@angular/material/dialog';
 import { ReservationComponent } from '../reservation/reservation.component';
 import { FirebaseService } from '../../services/firebase.service';
+import { AuthService } from '../../services/auth.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-calendar',
@@ -21,6 +24,7 @@ export class CalendarComponent implements OnInit {
   isWeeklyView: boolean = true;
   selectedDate: Date | null = null;
   absences: Absence[] = [];
+  currentUser$: Observable<any>;
   
 
   constructor(
@@ -28,7 +32,9 @@ export class CalendarComponent implements OnInit {
     private router: Router,
     private http: HttpClient,
     private dialog: MatDialog,
-    private firebaseService: FirebaseService
+    private firebaseService: FirebaseService,
+    private authService: AuthService,
+    private snackBar: MatSnackBar
   ) {
     const navigation = this.router.getCurrentNavigation();
     const availabilityDays = navigation?.extras?.state?.['availabilityDays'];
@@ -37,6 +43,7 @@ export class CalendarComponent implements OnInit {
         this.updateAvailabilityDays(availabilityDays);
       });
     }
+    this.currentUser$ = this.authService.currentUser$;
   }
 
   ngOnInit() {
@@ -558,34 +565,53 @@ export class CalendarComponent implements OnInit {
     });
   }
 
-  onSlotClick(slot: TimeSlot, date: string) {
+  async onSlotClick(slot: TimeSlot, date: string) {
     console.log('Kliknięto slot:', slot);
     console.log('Data:', date);
     
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser) {
+      this.snackBar.open('Musisz być zalogowany', 'OK', { duration: 3000 });
+      return;
+    }
+
+    if (currentUser.role === 'doctor' && !slot.isReserved) {
+      this.snackBar.open('Lekarz nie może rezerwować wizyt', 'OK', { duration: 3000 });
+      return;
+    }
+
     if (slot.isCancelled) {
-      alert('Wizyta została odwołana z powodu nieobecności lekarza.');
+      this.snackBar.open('Wizyta została odwołana z powodu nieobecności lekarza', 'OK', { duration: 3000 });
       return;
     }
     
     if (slot.isReserved) {
-      if (confirm('Czy chcesz odwołać tę rezerwację?')) {
-        this.cancelReservation(date, slot);
+      const reservations = await this.firebaseService.getReservedSlotsForDate(date);
+      const reservation = reservations.find(r => r.slot.start === slot.start);
+      
+      if (currentUser.role === 'admin' || currentUser.role === 'doctor' || 
+          (currentUser.role === 'patient' && reservation?.patientId === currentUser.id)) {
+        if (confirm('Czy chcesz odwołać tę rezerwację?')) {
+          this.cancelReservation(date, slot);
+        }
+      } else {
+        this.snackBar.open('Nie możesz odwołać cudzej wizyty', 'OK', { duration: 3000 });
       }
       return;
     }
 
-    if (!this.isTimeAvailable(date, slot.start)) {
-      alert('Ten termin nie jest dostępny.');
+    if (!this.isTimeAvailable(date, slot.start) && currentUser.role !== 'admin') {
+      this.snackBar.open('Ten termin nie jest dostępny', 'OK', { duration: 3000 });
       return;
     }
 
-    if (this.isAbsentDay(date)) {
-      alert('Lekarz jest nieobecny w tym dniu.');
+    if (this.isAbsentDay(date) && currentUser.role !== 'admin') {
+      this.snackBar.open('Lekarz jest nieobecny w tym dniu', 'OK', { duration: 3000 });
       return;
     }
 
-    if (this.isPastSlot(date, slot.start)) {
-      alert('Nie można zarezerwować terminu z przeszłości.');
+    if (this.isPastSlot(date, slot.start) && currentUser.role !== 'admin') {
+      this.snackBar.open('Nie można zarezerwować terminu z przeszłości', 'OK', { duration: 3000 });
       return;
     }
 
@@ -600,10 +626,9 @@ export class CalendarComponent implements OnInit {
     });
 
     dialogRef.afterClosed().subscribe(result => {
-      console.log('Dialog zamknięty, wynik:', result);
       if (result) {
         if (result.duration === '60' && !this.canBook60MinSlot(date, slot)) {
-          alert('Nie można zarezerwować 60-minutowej wizyty - następny slot jest zajęty.');
+          this.snackBar.open('Nie można zarezerwować 60-minutowej wizyty - następny slot jest zajęty', 'OK', { duration: 3000 });
           return;
         }
         this.updateSlot(date, slot, result);
@@ -613,13 +638,28 @@ export class CalendarComponent implements OnInit {
 
   private async cancelReservation(date: string, slot: TimeSlot) {
     try {
+      const currentUser = this.authService.getCurrentUser();
+      if (!currentUser) {
+        this.snackBar.open('Musisz być zalogowany', 'OK', { duration: 3000 });
+        return;
+      }
+
       const reservations = await this.firebaseService.getReservedSlotsForDate(date);
-      
       const reservationToCancel = reservations.find(r => 
         r.slot.start === slot.start && r.date === date
       );
 
-      if (reservationToCancel?.id) {
+      if (!reservationToCancel) {
+        this.snackBar.open('Nie znaleziono rezerwacji', 'OK', { duration: 3000 });
+        return;
+      }
+
+      if (currentUser.role === 'patient' && reservationToCancel.patientId !== currentUser.id) {
+        this.snackBar.open('Możesz odwołać tylko własne wizyty', 'OK', { duration: 3000 });
+        return;
+      }
+
+      if (reservationToCancel.id) {
         await this.firebaseService.deleteSlot(reservationToCancel.id);
 
         if (slot.end === this.addMinutes(slot.start, 60)) {
@@ -647,11 +687,11 @@ export class CalendarComponent implements OnInit {
         }
 
         await this.loadAvailabilityData();
-        alert('Rezerwacja została odwołana.');
+        this.snackBar.open('Wizyta została odwołana', 'OK', { duration: 3000 });
       }
     } catch (error) {
       console.error('Błąd podczas odwoływania rezerwacji:', error);
-      alert('Wystąpił błąd podczas odwoływania rezerwacji');
+      this.snackBar.open('Wystąpił błąd podczas odwoływania wizyty', 'OK', { duration: 3000 });
     }
   }
 
@@ -676,12 +716,14 @@ export class CalendarComponent implements OnInit {
 
   private async updateSlot(date: string, slot: TimeSlot, reservationData: any) {
     try {
+      const currentUser = this.authService.getCurrentUser();
+      if (!currentUser) return;
+
       const day = this.days.find(d => d.date === date);
       if (!day) return;
 
       const availableHours = [...day.availableHours];
-
-      await this.firebaseService.saveReservedSlot(date, {
+      const slotToSave = {
         ...slot,
         isEmpty: false,
         isReserved: true,
@@ -689,29 +731,32 @@ export class CalendarComponent implements OnInit {
         type: reservationData.type,
         details: {
           patientName: reservationData.patientName,
-          patientGender: reservationData.patientGender,
-          patientAge: reservationData.patientAge,
+          patientEmail: reservationData.patientEmail,
+          patientPhone: reservationData.patientPhone,
           notes: reservationData.doctorNotes
         }
-      });
+      };
+
+      await this.firebaseService.saveReservedSlot(date, slotToSave, currentUser);
 
       if (reservationData.duration === '60') {
         const nextSlot = {
-          ...slot,
+          ...slotToSave,
           start: this.addMinutes(slot.start, 30),
-          end: this.addMinutes(slot.start, 60),
-          isEmpty: false,
-          isReserved: true,
-          isAvailable: false,
-          type: reservationData.type,
-          details: {
-            patientName: reservationData.patientName,
-            patientGender: reservationData.patientGender,
-            patientAge: reservationData.patientAge,
-            notes: reservationData.doctorNotes
-          }
+          end: this.addMinutes(slot.start, 60)
         };
-        await this.firebaseService.saveReservedSlot(date, nextSlot);
+        await this.firebaseService.saveReservedSlot(date, nextSlot, currentUser);
+      }
+
+      const index = availableHours.indexOf(slot.start);
+      if (index > -1) {
+        availableHours.splice(index, 1);
+        if (reservationData.duration === '60') {
+          const nextHourIndex = availableHours.indexOf(this.addMinutes(slot.start, 30));
+          if (nextHourIndex > -1) {
+            availableHours.splice(nextHourIndex, 1);
+          }
+        }
       }
 
       const existingAvailability = await this.firebaseService.getAvailabilities();

@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -6,6 +6,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { CommonModule } from '@angular/common';
+import { AuthService } from '../../services/auth.service';
+import { MatDialogModule } from '@angular/material/dialog';
 
 @Component({
   selector: 'app-reservation',
@@ -18,32 +20,50 @@ import { CommonModule } from '@angular/common';
     MatInputModule,
     MatSelectModule,
     MatButtonModule,
-    CommonModule
+    CommonModule,
+    MatDialogModule
   ]
 })
-export class ReservationComponent {
+export class ReservationComponent implements OnInit {
   reservationForm: FormGroup;
   canBook60Min: boolean;
+  patientData: any;
 
   constructor(
     private fb: FormBuilder,
-    private dialogRef: MatDialogRef<ReservationComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any
+    public dialogRef: MatDialogRef<ReservationComponent>,
+    @Inject(MAT_DIALOG_DATA) public data: any,
+    private authService: AuthService
   ) {
     this.canBook60Min = data.canBook60Min;
+    const currentUser = this.authService.getCurrentUser();
+    
     this.reservationForm = this.fb.group({
-      duration: ['30', Validators.required],
       type: ['', Validators.required],
-      patientName: ['', Validators.required],
-      patientGender: ['', Validators.required],
-      patientAge: ['', [Validators.required, Validators.min(0), Validators.max(150)]],
+      duration: ['30', Validators.required],
       doctorNotes: ['']
     });
+
+    // Automatycznie ustawiamy dane z konta użytkownika
+    if (currentUser) {
+      this.patientData = {
+        patientName: `${currentUser.firstName} ${currentUser.lastName}`,
+        patientEmail: currentUser.email,
+        patientPhone: currentUser.phoneNumber || ''
+      };
+    }
   }
 
-  onSubmit() {
+  ngOnInit(): void {
+    // Możesz zostawić pustą implementację, jeśli nie potrzebujesz inicjalizacji
+  }
+
+  onSubmit(): void {
     if (this.reservationForm.valid) {
-      this.dialogRef.close(this.reservationForm.value);
+      this.dialogRef.close({
+        ...this.reservationForm.value,
+        ...this.patientData
+      });
     }
   }
 

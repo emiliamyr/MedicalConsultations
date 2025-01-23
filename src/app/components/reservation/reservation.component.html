@@ -1,52 +1,36 @@
 <div class="reservation-form">
-  <h2>Rezerwacja konsultacji</h2>
+  <h2 mat-dialog-title>Rezerwacja wizyty</h2>
   
-  <form [formGroup]="reservationForm" (ngSubmit)="onSubmit()">
-    <mat-form-field>
-      <mat-label>Długość konsultacji</mat-label>
-      <mat-select formControlName="duration">
-        <mat-option value="30">30 minut</mat-option>
-        <mat-option value="60" [disabled]="!canBook60Min">60 minut</mat-option>
-      </mat-select>
-      <mat-hint *ngIf="!canBook60Min">60-minutowa wizyta nie jest dostępna - następny slot jest zajęty</mat-hint>
-    </mat-form-field>
+  <mat-dialog-content>
+    <form [formGroup]="reservationForm">
+      <mat-form-field>
+        <mat-label>Typ wizyty</mat-label>
+        <mat-select formControlName="type">
+          <mat-option value="consultation">Konsultacja</mat-option>
+          <mat-option value="control">Wizyta kontrolna</mat-option>
+          <mat-option value="treatment">Zabieg</mat-option>
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field>
-      <mat-label>Typ konsultacji</mat-label>
-      <mat-select formControlName="type">
-        <mat-option value="pierwsza">Pierwsza wizyta</mat-option>
-        <mat-option value="kontrolna">Wizyta kontrolna</mat-option>
-        <mat-option value="przewlekla">Choroba przewlekła</mat-option>
-        <mat-option value="recepta">Recepta</mat-option>
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field>
+        <mat-label>Czas trwania</mat-label>
+        <mat-select formControlName="duration">
+          <mat-option value="30">30 minut</mat-option>
+          <mat-option value="60" *ngIf="data.canBook60Min">60 minut</mat-option>
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field>
-      <mat-label>Imię i nazwisko pacjenta</mat-label>
-      <input matInput formControlName="patientName">
-    </mat-form-field>
+      <mat-form-field>
+        <mat-label>Uwagi dla lekarza</mat-label>
+        <textarea matInput formControlName="doctorNotes"></textarea>
+      </mat-form-field>
+    </form>
+  </mat-dialog-content>
 
-    <mat-form-field>
-      <mat-label>Płeć pacjenta</mat-label>
-      <mat-select formControlName="patientGender">
-        <mat-option value="K">Kobieta</mat-option>
-        <mat-option value="M">Mężczyzna</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    <mat-form-field>
-      <mat-label>Wiek pacjenta</mat-label>
-      <input matInput type="number" formControlName="patientAge">
-    </mat-form-field>
-
-    <mat-form-field>
-      <mat-label>Informacje dla lekarza</mat-label>
-      <textarea matInput formControlName="doctorNotes"></textarea>
-    </mat-form-field>
-
-    <div class="button-container">
-      <button mat-raised-button color="primary" type="submit">Zarezerwuj</button>
-      <button mat-button (click)="onCancel()">Anuluj</button>
-    </div>
-  </form>
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="dialogRef.close()">Anuluj</button>
+    <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="!reservationForm.valid">
+      Zarezerwuj
+    </button>
+  </mat-dialog-actions>
 </div> 

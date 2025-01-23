@@ -7,6 +7,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatNativeDateModule } from '@angular/material/core';
+import { AuthService } from '../../services/auth.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { ReservedSlot } from '../../models/reserved-slot.model';
 
 @Component({
   selector: 'app-reservations-list',
@@ -23,26 +26,36 @@ import { MatNativeDateModule } from '@angular/material/core';
   ]
 })
 export class ReservationsListComponent implements OnInit {
-  reservations: any[] = [];
+  reservations: ReservedSlot[] = [];
+  loading = false;
 
-  constructor(private firebaseService: FirebaseService) {}
+  constructor(
+    private firebaseService: FirebaseService,
+    private authService: AuthService,
+    private snackBar: MatSnackBar
+  ) {}
 
-  ngOnInit() {
-    this.loadReservations();
+  async ngOnInit() {
+    await this.loadReservations();
   }
 
   private async loadReservations() {
     try {
-      const allReservations = await this.firebaseService.getReservedSlots();
-      this.reservations = allReservations
-        .filter(res => !res.slot.isCancelled)
-        .sort((a, b) => a.date.localeCompare(b.date) || a.slot.start.localeCompare(b.slot.start))
-        .map(res => ({
-          ...res,
-          isPaid: res.isPaid || false
-        }));
+      this.loading = true;
+      const currentUser = this.authService.getCurrentUser();
+      
+      if (!currentUser) {
+        this.snackBar.open('Musisz być zalogowany', 'OK', { duration: 3000 });
+        return;
+      }
+
+      this.reservations = await this.firebaseService.getReservedSlotsForUser(currentUser.id);
+      this.reservations.sort((a, b) => a.date.localeCompare(b.date));
     } catch (error) {
       console.error('Błąd podczas ładowania rezerwacji:', error);
+      this.snackBar.open('Wystąpił błąd podczas ładowania rezerwacji', 'OK', { duration: 3000 });
+    } finally {
+      this.loading = false;
     }
   }
 

@@ -15,8 +15,8 @@
       <mat-card-content>
         <p>Typ wizyty: {{ reservation.slot.type }}</p>
         <p>Czas trwania: {{ reservation.slot.end === addMinutes(reservation.slot.start, 60) ? '60 min' : '30 min' }}</p>
-        <p *ngIf="reservation.slot.details?.notes">
-          Notatki: {{ reservation.slot.details.notes }}
+        <p *ngIf="reservation?.slot?.details?.notes">
+          Notatki: {{ reservation?.slot?.details?.notes }}
         </p>
       </mat-card-content>
 

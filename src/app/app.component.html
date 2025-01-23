@@ -1,23 +1,71 @@
 <mat-toolbar color="primary">
   <span>Medical Consultation App</span>
+  <span class="spacer"></span>
+  
   <nav>
-    <button mat-button routerLink="/calendar" routerLinkActive="active">
-      Kalendarz
-    </button>
-    <button mat-button routerLink="/availability" routerLinkActive="active">
-      Dostępność
-    </button>
-    <button mat-button routerLink="/absence" routerLinkActive="active">
-      Nieobecności
-    </button>
-    <button mat-button routerLink="/reservations" routerLinkActive="active">
-      Rezerwacje
-    </button>
+    <ng-container *ngIf="isLoggedIn$ | async as user">
+      <button mat-button routerLink="/calendar" routerLinkActive="active">
+        <mat-icon>calendar_today</mat-icon>
+        Kalendarz
+      </button>
+      
+      <ng-container *ngIf="(currentUser$ | async)?.role === 'doctor'">
+        <button mat-button routerLink="/availability" routerLinkActive="active">
+          <mat-icon>schedule</mat-icon>
+          Dostępność
+        </button>
+        
+        <button mat-button routerLink="/absence" routerLinkActive="active">
+          <mat-icon>event_busy</mat-icon>
+          Nieobecności
+        </button>
+      </ng-container>
+      
+      <ng-container *ngIf="(currentUser$ | async)?.role === 'patient'">
+        <button mat-button routerLink="/reservations" routerLinkActive="active">
+          <mat-icon>book_online</mat-icon>
+          Rezerwacje
+        </button>
+      </ng-container>
+
+      <div class="user-info">
+        <button mat-button [matMenuTriggerFor]="userMenu" class="user-button">
+          <mat-icon>account_circle</mat-icon>
+          <span class="username">{{ (currentUser$ | async)?.firstName }} {{ (currentUser$ | async)?.lastName }}</span>
+          <mat-icon>arrow_drop_down</mat-icon>
+        </button>
+        
+        <mat-menu #userMenu="matMenu" class="user-menu">
+          <div class="user-header" mat-menu-item disabled>
+            <small>Zalogowany jako:</small>
+            <strong>{{ (currentUser$ | async)?.email }}</strong>
+          </div>
+          <mat-divider></mat-divider>
+          <button mat-menu-item (click)="logout()">
+            <mat-icon>exit_to_app</mat-icon>
+            <span>Wyloguj się</span>
+          </button>
+        </mat-menu>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="!(isLoggedIn$ | async)">
+      <button mat-button routerLink="/login" routerLinkActive="active">
+        <mat-icon>login</mat-icon>
+        Zaloguj się
+      </button>
+      <button mat-button routerLink="/register" routerLinkActive="active">
+        <mat-icon>person_add</mat-icon>
+        Zarejestruj się
+      </button>
+    </ng-container>
   </nav>
 </mat-toolbar>
 
-<router-outlet></router-outlet>
+<div class="main-container">
+  <router-outlet></router-outlet>
+</div>
 
 <footer class="footer">
-  <div class="footer">© 2024 Medical Consultation App</div>
+  <div>© 2024 Medical Consultation App</div>
 </footer>

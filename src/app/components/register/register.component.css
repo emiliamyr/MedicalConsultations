@@ -1,0 +1,43 @@
+.register-container {
+  max-width: 400px;
+  margin: 40px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow-y: auto;
+  max-height: calc(100vh - 200px); /* Wysokość viewportu minus toolbar, marginesy i footer */
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+mat-form-field {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.button-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  position: sticky;
+  bottom: 0;
+  background: white;
+  padding-top: 10px;
+}
+
+button[type="submit"] {
+  width: 100%;
+}
+
+:host {
+  display: block;
+  padding-bottom: 80px;
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
+} 

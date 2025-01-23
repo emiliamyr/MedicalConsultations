@@ -1,0 +1,14 @@
+.admin-container {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+h2 {
+  color: #557cc1;
+  margin-bottom: 20px;
+}
+
+button {
+  margin: 10px 0;
+} 

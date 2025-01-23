@@ -22,6 +22,9 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { provideFirestore, getFirestore } from '@angular/fire/firestore';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { AuthGuard } from './guards/auth.guard';
+import { RoleGuard } from './guards/role.guard';
 
 
 const firebaseConfig = {
@@ -59,13 +62,16 @@ const firebaseConfig = {
     MatSelectModule,
     RouterModule,
     CommonModule,
-    MatIconModule
+    MatIconModule,
+    MatMenuModule
   ],
   providers: [
     provideAnimationsAsync(),
     DatePipe,
     provideFirebaseApp(() => initializeApp(firebaseConfig)),
-    provideFirestore(() => getFirestore())
+    provideFirestore(() => getFirestore()),
+    AuthGuard,
+    RoleGuard
   ],
   bootstrap: [AppComponent]
 })
