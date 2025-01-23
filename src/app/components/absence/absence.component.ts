@@ -52,7 +52,6 @@ export class AbsenceComponent implements OnInit {
   async onSubmit(): Promise<void> {
     if (this.absenceForm.valid) {
       try {
-        // Formatuj daty do formatu ISO, zachowując właściwą strefę czasową
         const formValue = this.absenceForm.value;
         const absence: Absence = {
           startDate: this.formatDate(formValue.startDate),
@@ -72,7 +71,7 @@ export class AbsenceComponent implements OnInit {
 
   private formatDate(date: Date): string {
     const d = new Date(date);
-    d.setHours(12, 0, 0, 0); // Ustaw na południe aby uniknąć problemów ze strefą czasową
+    d.setHours(12, 0, 0, 0); 
     return d.toISOString().split('T')[0];
   }
 

@@ -4,11 +4,11 @@
     margin: 20px;
     background: #f9f9f9;
     border-radius: 5px;
-    height: calc(100vh - 250px); /* Jeszcze większa przestrzeń */
+    height: calc(100vh - 250px); 
     overflow-y: auto;
     overflow-x: hidden;
     position: relative;
-    margin-bottom: 120px; /* Większy margines na dole */
+    margin-bottom: 120px; 
 }
   
 .availability-form label {
@@ -41,7 +41,7 @@
 
 .buttons {
     position: fixed;
-    bottom: 60px; /* Większy odstęp od dołu */
+    bottom: 60px;
     left: 40px;
     right: 40px;
     display: flex;
@@ -80,7 +80,6 @@
     margin-top: 4px;
 }
   
-/* Zwiększony margines na dole */
 .time-range:last-child {
     margin-bottom: 150px;
 }

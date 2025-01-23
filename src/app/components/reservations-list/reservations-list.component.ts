@@ -48,7 +48,6 @@ export class ReservationsListComponent implements OnInit {
 
   async processPayment(reservation: any) {
     try {
-      // Symulacja procesu płatności
       const isPaymentSuccessful = await this.simulatePayment();
       
       if (isPaymentSuccessful) {
@@ -70,10 +69,9 @@ export class ReservationsListComponent implements OnInit {
   private simulatePayment(): Promise<boolean> {
     return new Promise((resolve) => {
       setTimeout(() => {
-        // 90% szans na sukces płatności
         const isSuccessful = Math.random() < 0.9;
         resolve(isSuccessful);
-      }, 1500); // 1.5s opóźnienia dla symulacji
+      }, 1500); 
     });
   }
 

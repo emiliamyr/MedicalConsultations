@@ -12,13 +12,11 @@ import { ReservedSlot } from '../models/reserved-slot.model';
 export class FirebaseService {
   constructor(private firestore: Firestore) {}
 
-  // Zapisz dostępność
   async saveAvailability(availability: Availability) {
     const availabilityCollection = collection(this.firestore, 'availability');
     return addDoc(availabilityCollection, availability);
   }
 
-  // Pobierz dostępności
   async getAvailabilities(): Promise<Availability[]> {
     const availabilityCollection = collection(this.firestore, 'availability');
     const querySnapshot = await getDocs(availabilityCollection);
@@ -33,7 +31,6 @@ export class FirebaseService {
     });
   }
 
-  // Zapisz zarezerwowany slot
   async saveReservedSlot(date: string, slot: TimeSlot) {
     const reservedSlotsCollection = collection(this.firestore, 'reserved-slots');
     const reservedSlot = {
@@ -44,14 +41,12 @@ export class FirebaseService {
     return addDoc(reservedSlotsCollection, reservedSlot);
   }
 
-  // Pobierz zarezerwowane sloty
   async getReservedSlots(): Promise<ReservedSlot[]> {
     const reservedSlotsCollection = collection(this.firestore, 'reserved-slots');
     const querySnapshot = await getDocs(reservedSlotsCollection);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReservedSlot));
   }
 
-  // Pobierz zarezerwowane sloty dla konkretnej daty
   async getReservedSlotsForDate(date: string): Promise<ReservedSlot[]> {
     const reservedSlotsCollection = collection(this.firestore, 'reserved-slots');
     const q = query(reservedSlotsCollection, where('date', '==', date));
@@ -59,19 +54,16 @@ export class FirebaseService {
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ReservedSlot));
   }
 
-  // Aktualizuj slot
   async updateSlot(slotId: string, updatedData: any) {
     const slotRef = doc(this.firestore, 'reserved-slots', slotId);
     return updateDoc(slotRef, updatedData);
   }
 
-  // Usuń slot
   async deleteSlot(slotId: string) {
     const slotRef = doc(this.firestore, 'reserved-slots', slotId);
     return deleteDoc(slotRef);
   }
 
-  // Dodaj te metody do FirebaseService
   async saveAvailabilities(availabilities: Availability[]) {
     const batch: Promise<any>[] = [];
     for (const availability of availabilities) {
@@ -98,7 +90,6 @@ export class FirebaseService {
     return updateDoc(docRef, data);
   }
 
-  // Dodaj te metody do FirebaseService
   async saveAbsence(absence: Absence) {
     const absenceCollection = collection(this.firestore, 'absence');
     return addDoc(absenceCollection, absence);

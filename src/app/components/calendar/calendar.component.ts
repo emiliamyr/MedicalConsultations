@@ -70,10 +70,8 @@ export class CalendarComponent implements OnInit {
       this.days = [];
 
       availabilities.forEach((availability: Availability) => {
-        // Stwórz kopię dostępnych godzin
         const availableHours = [...availability.availableHours];
         
-        // Stwórz sloty dla wszystkich dostępnych godzin
         const slots = availableHours.map(hour => ({
           start: hour,
           end: this.addMinutes(hour, 30),
@@ -83,16 +81,13 @@ export class CalendarComponent implements OnInit {
           type: null
         } as TimeSlot));
 
-        // Znajdź rezerwacje dla tego dnia
         const dayReservations = reservedSlots.filter(rs => rs.date === availability.date);
         
-        // Dodaj zarezerwowane sloty
         dayReservations.forEach(reservation => {
           const reservedSlot = reservation.slot;
           const existingSlotIndex = slots.findIndex(slot => slot.start === reservedSlot.start);
           
           if (existingSlotIndex !== -1) {
-            // Aktualizuj istniejący slot
             slots[existingSlotIndex] = {
               ...reservedSlot,
               isAvailable: false,
@@ -100,7 +95,6 @@ export class CalendarComponent implements OnInit {
               isReserved: true
             };
           } else {
-            // Dodaj nowy slot
             slots.push({
               ...reservedSlot,
               isAvailable: false,
@@ -110,17 +104,15 @@ export class CalendarComponent implements OnInit {
           }
         });
         
-        // Sortuj sloty po czasie rozpoczęcia
         slots.sort((a, b) => a.start.localeCompare(b.start));
 
         this.days.push({
           date: availability.date,
-          availableHours: availableHours, // Zachowaj oryginalne dostępne godziny
+          availableHours: availableHours,
           slots: slots
         });
       });
 
-      // Dodaj brakujące dni
       for (let i = -7; i < 30; i++) {
         const date = new Date(this.currentDate);
         date.setDate(this.currentDate.getDate() + i);
@@ -135,10 +127,8 @@ export class CalendarComponent implements OnInit {
         }
       }
 
-      // Sortuj dni po dacie
       this.days.sort((a, b) => a.date.localeCompare(b.date));
 
-      // Oznacz dni nieobecności
       if (this.absences.length > 0) {
         this.markAbsentDays();
       }
@@ -307,7 +297,6 @@ export class CalendarComponent implements OnInit {
   }
   
   private updateAvailabilityDays(newDays: Availability[]): void {
-    // Pobieramy zapisane dostępności
     const savedAvailabilities = JSON.parse(localStorage.getItem('availabilities') || '[]');
     const updatedDays = [...this.days];
 
@@ -316,7 +305,6 @@ export class CalendarComponent implements OnInit {
       const savedDay = savedAvailabilities.find((d: Availability) => d.date === newDay.date) as Availability | undefined;
       
       if (existingDayIndex !== -1) {
-        // Łączymy nowe godziny z zapisanymi i istniejącymi
         const existingHours = updatedDays[existingDayIndex].availableHours || [];
         const savedHours = savedDay?.availableHours || [];
         const newHours = newDay.slots.map(slot => slot.start);
@@ -332,7 +320,6 @@ export class CalendarComponent implements OnInit {
 
     this.days = updatedDays.sort((a, b) => a.date.localeCompare(b.date));
     
-    // Zapisujemy zaktualizowane dostępności
     localStorage.setItem('availabilities', JSON.stringify(
       this.days.filter(day => day.availableHours && day.availableHours.length > 0)
     ));
@@ -342,7 +329,6 @@ export class CalendarComponent implements OnInit {
     const monday = new Date(this.currentDate);
     monday.setHours(0, 0, 0, 0);
     
-    // Ustaw na poniedziałek
     while (monday.getDay() !== 1) {
       monday.setDate(monday.getDate() - 1);
     }
@@ -369,18 +355,15 @@ export class CalendarComponent implements OnInit {
       });
     }
 
-    // Znajdź poniedziałek bieżącego tygodnia
     const monday = new Date(this.currentDate);
     monday.setHours(0, 0, 0, 0);
     
-    // Dostosuj do poniedziałku
     let dayOfWeek = monday.getDay();
-    if (dayOfWeek === 0) dayOfWeek = 7; // Traktuj niedzielę jako 7
+    if (dayOfWeek === 0) dayOfWeek = 7;
     monday.setDate(monday.getDate() - dayOfWeek + 2);
 
     const weekDays: Availability[] = new Array(7);
     
-    // Wypełnij tablicę dniami w odpowiedniej kolejności
     for (let i = 0; i < 7; i++) {
       const currentDate = new Date(monday);
       currentDate.setDate(monday.getDate() + i);
@@ -393,7 +376,6 @@ export class CalendarComponent implements OnInit {
         availableHours: []
       };
 
-      // Umieść dzień w odpowiedniej pozycji (0 = poniedziałek, 6 = niedziela)
       const dayPosition = (currentDate.getDay() + 6) % 7;
       weekDays[i] = dayToAdd;
     }
@@ -409,13 +391,11 @@ export class CalendarComponent implements OnInit {
     const endInMinutes = endHour * 60 + endMinute;
     const durationInMinutes = endInMinutes - startInMinutes;
     
-    // Zmniejszamy wysokość - jeden 30-minutowy slot będzie miał 35px zamiast 40px
     return (durationInMinutes / 30) * 35;
   }
 
   getSlotPosition(slot: TimeSlot): number {
     const [, minute] = slot.start.split(':').map(Number);
-    // Każde 30 minut to 35px, więc 1 minuta to 35/30 px
     return (minute / 30) * 35;
   }
 
@@ -425,7 +405,6 @@ export class CalendarComponent implements OnInit {
     const currentMinute = now.getMinutes();
     const [hourStr, minuteStr] = hour.split(':').map(Number);
 
-    // Sprawdzamy czy jesteśmy w tej samej godzinie i tym samym 30-minutowym przedziale
     return currentHour === hourStr && 
            Math.floor(currentMinute / 30) === Math.floor(minuteStr / 30);
   }
@@ -443,7 +422,6 @@ export class CalendarComponent implements OnInit {
 
   async clearAvailability(): Promise<void> {
     try {
-      // Usuń wszystkie rezerwacje
       const reservedSlots = await this.firebaseService.getReservedSlots();
       for (const slot of reservedSlots) {
         if (slot.id) {
@@ -451,10 +429,8 @@ export class CalendarComponent implements OnInit {
         }
       }
 
-      // Usuń wszystkie dostępności
       await this.firebaseService.deleteAllAvailabilities();
 
-      // Usuń wszystkie nieobecności
       const absences = await this.firebaseService.getAbsences();
       for (const absence of absences) {
         if (absence.id) {
@@ -462,7 +438,6 @@ export class CalendarComponent implements OnInit {
         }
       }
       
-      // Wyczyść lokalny stan
       this.days = this.days.map(day => ({
         ...day,
         availableHours: [],
@@ -470,10 +445,8 @@ export class CalendarComponent implements OnInit {
         isAbsent: false
       }));
       
-      // Wyczyść lokalną listę nieobecności
       this.absences = [];
       
-      // Odśwież widok
       await this.loadAvailabilityData();
     } catch (error) {
       console.error('Błąd podczas czyszczenia kalendarza:', error);
@@ -489,7 +462,6 @@ export class CalendarComponent implements OnInit {
     const endInMinutes = endHour * 60 + endMinute;
     const durationInMinutes = endInMinutes - startInMinutes;
     
-    // Każde 30 minut to jedna komórka (200px)
     return (durationInMinutes / 30) * 200;
   }
 
@@ -525,7 +497,6 @@ export class CalendarComponent implements OnInit {
       });
 
       if (isAbsent) {
-        // Usuń dostępności z Firebase dla tego dnia
         const existingAvailability = await this.firebaseService.getAvailabilities();
         const dayAvailability = existingAvailability.find(a => a.date === day.date);
         if (dayAvailability?.id) {
@@ -535,10 +506,8 @@ export class CalendarComponent implements OnInit {
           });
         }
 
-        // Oznacz zarezerwowane sloty jako odwołane
         const updatedSlots = await Promise.all(day.slots.map(async slot => {
           if (slot.isReserved) {
-            // Znajdź rezerwację i oznacz jako odwołaną
             const reservations = await this.firebaseService.getReservedSlotsForDate(day.date);
             const reservationToUpdate = reservations.find(r => r.slot.start === slot.start);
             if (reservationToUpdate?.id) {
@@ -560,14 +529,14 @@ export class CalendarComponent implements OnInit {
               isReserved: true
             };
           }
-          return null; // Usuwamy niezarezerwowane sloty
+          return null;
         }));
 
         return {
           ...day,
           isAbsent: true,
-          availableHours: [], // Czyścimy dostępne godziny
-          slots: updatedSlots.filter(slot => slot !== null) // Zachowujemy tylko zarezerwowane sloty
+          availableHours: [],
+          slots: updatedSlots.filter(slot => slot !== null)
         };
       }
 
@@ -644,19 +613,15 @@ export class CalendarComponent implements OnInit {
 
   private async cancelReservation(date: string, slot: TimeSlot) {
     try {
-      // Pobierz wszystkie rezerwacje dla tego dnia
       const reservations = await this.firebaseService.getReservedSlotsForDate(date);
       
-      // Znajdź rezerwację do usunięcia
       const reservationToCancel = reservations.find(r => 
         r.slot.start === slot.start && r.date === date
       );
 
       if (reservationToCancel?.id) {
-        // Usuń rezerwację
         await this.firebaseService.deleteSlot(reservationToCancel.id);
 
-        // Jeśli to była 60-minutowa wizyta, znajdź i usuń drugi slot
         if (slot.end === this.addMinutes(slot.start, 60)) {
           const nextSlotReservation = reservations.find(r => 
             r.slot.start === this.addMinutes(slot.start, 30) && r.date === date
@@ -666,7 +631,6 @@ export class CalendarComponent implements OnInit {
           }
         }
 
-        // Przywróć dostępność slotów w Firebase
         const existingAvailability = await this.firebaseService.getAvailabilities();
         const dayAvailability = existingAvailability.find(a => a.date === date);
         
@@ -682,7 +646,6 @@ export class CalendarComponent implements OnInit {
           });
         }
 
-        // Odśwież widok
         await this.loadAvailabilityData();
         alert('Rezerwacja została odwołana.');
       }
@@ -698,14 +661,12 @@ export class CalendarComponent implements OnInit {
 
     const nextSlotStart = this.addMinutes(slot.start, 30);
     
-    // Sprawdź czy następna godzina jest w ogóle dostępna w harmonogramie
     if (!day.availableHours.includes(nextSlotStart)) {
       return false;
     }
 
     const nextSlot = day.slots.find(s => s.start === nextSlotStart);
 
-    // Sprawdź czy następny slot istnieje i jest zarezerwowany
     if (nextSlot && nextSlot.isReserved) {
       return false;
     }
@@ -715,14 +676,11 @@ export class CalendarComponent implements OnInit {
 
   private async updateSlot(date: string, slot: TimeSlot, reservationData: any) {
     try {
-      // Znajdź dzień w lokalnym stanie
       const day = this.days.find(d => d.date === date);
       if (!day) return;
 
-      // Zachowaj listę dostępnych godzin
       const availableHours = [...day.availableHours];
 
-      // Zapisz rezerwację
       await this.firebaseService.saveReservedSlot(date, {
         ...slot,
         isEmpty: false,
@@ -737,7 +695,6 @@ export class CalendarComponent implements OnInit {
         }
       });
 
-      // Jeśli wizyta jest 60-minutowa
       if (reservationData.duration === '60') {
         const nextSlot = {
           ...slot,
@@ -757,7 +714,6 @@ export class CalendarComponent implements OnInit {
         await this.firebaseService.saveReservedSlot(date, nextSlot);
       }
 
-      // Zaktualizuj dostępność w Firebase
       const existingAvailability = await this.firebaseService.getAvailabilities();
       const dayAvailability = existingAvailability.find(a => a.date === date);
       
@@ -768,7 +724,6 @@ export class CalendarComponent implements OnInit {
         });
       }
 
-      // Odśwież dane
       await this.loadAvailabilityData();
     } catch (error) {
       console.error('Błąd podczas aktualizacji slotu:', error);

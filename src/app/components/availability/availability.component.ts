@@ -50,22 +50,17 @@ export class AvailabilityComponent {
     }
 
     try {
-      // Pobierz istniejące dostępności
       const existingAvailabilities = await this.firebaseService.getAvailabilities();
       const newAvailabilityDays = this.generateAvailabilityDays();
       
-      // Dla każdego nowego dnia
       for (const newDay of newAvailabilityDays) {
-        // Sprawdź czy już istnieje dostępność na ten dzień
         const existingDay = existingAvailabilities.find(day => day.date === newDay.date);
         
         if (existingDay) {
-          // Jeśli istnieje, dodaj nowe godziny do istniejących
           const combinedHours = [...new Set([...existingDay.availableHours, ...newDay.availableHours])];
           const combinedSlots = [...existingDay.slots, ...newDay.slots]
             .sort((a, b) => a.start.localeCompare(b.start));
 
-          // Aktualizuj istniejący dokument
           if (existingDay.id) {
             await this.firebaseService.updateAvailability(existingDay.id, {
               availableHours: combinedHours,
@@ -73,7 +68,6 @@ export class AvailabilityComponent {
             });
           }
         } else {
-          // Jeśli nie istnieje, dodaj nowy dzień
           await this.firebaseService.saveAvailability({
             date: newDay.date,
             slots: newDay.slots,
